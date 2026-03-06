@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Web‑AR Investment Grafik</title>
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-ar@1.8.2/dist/aframe-ar.min.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    .info {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 8px;
+      z-index: 10;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="info">Richte die Kamera auf eine Fläche – die Grafik erscheint automatisch.</div>
+
+  <a-scene
+      vr-mode-ui="enabled: false"
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false;">
+
+      <a-image src="ar_investmentgrafik.png" position="0 0 -1" width="1.2" height="0.8"></a-image>
+
+  </a-scene>
+
+</body>
+</html>
