@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AR Investment Grafik – WebXR</title>
+  <style>
+    html, body { margin:0; height:100%; background:#f5f5f5; }
+    #enterAR { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 10; }
+    .hint { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color:#fff; padding:8px 12px; border-radius:8px; font-family: system-ui, sans-serif; }
+  </style>
+  <!-- three.js & helpers loaded from CDN -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/examples/jsm/webxr/ARButton.js"></script>
+</head>
+<body>
+  <div class="hint">Bewege das iPhone, um eine Fläche zu finden. Tippe, um die Grafik zu platzieren.</div>
+  <script>
+    // Basic three.js scene
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera();
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // AR Button
+    document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+    // Lighting (ambient so texture looks clear)
+    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+
+    // Load texture
+    const texLoader = new THREE.TextureLoader();
+    const texture = texLoader.load('ar_investmentgrafik.png');
+
+    // Create a plane with the chart as texture (size ~ 0.6m x 0.4m)
+    const planeGeom = new THREE.PlaneGeometry(0.6, 0.4);
+    const planeMat  = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+    const plane     = new THREE.Mesh(planeGeom, planeMat);
+    plane.visible = false; // make visible after placement
+    scene.add(plane);
+
+    // Hit test setup
+    let xrHitTestSource = null;
+    let hitTestSourceRequested = false;
+
+    function onSelect() {
+      // Place the plane where the reticle is
+      if (reticle.visible) {
+        plane.position.setFromMatrixPosition(reticle.matrix);
+        plane.quaternion.setFromRotationMatrix(reticle.matrix);
+        plane.rotateX(-Math.PI/2); // orient plane upright
+        plane.visible = true;
+      }
+    }
+
+    // Reticle
+    const reticleGeo = new THREE.RingGeometry(0.05, 0.06, 32).rotateX(-Math.PI / 2);
+    const reticleMat = new THREE.MeshBasicMaterial({ color: 0x00a3ff });
+    const reticle    = new THREE.Mesh(reticleGeo, reticleMat);
+    reticle.matrixAutoUpdate = false;
+    reticle.visible = false;
+    scene.add(reticle);
+
+    const controller = renderer.xr.getController(0);
+    controller.addEventListener('select', onSelect);
+    scene.add(controller);
+
+    // Render loop with AR hit-test
+    renderer.setAnimationLoop(function(timestamp, frame){
+      if (frame) {
+        const referenceSpace = renderer.xr.getReferenceSpace();
+        const session = renderer.xr.getSession();
+
+        if (!hitTestSourceRequested) {
+          session.requestReferenceSpace('viewer').then((refSpace) => {
+            session.requestHitTestSource({ space: refSpace }).then((source) => {
+              xrHitTestSource = source;
+            });
+          });
+          session.addEventListener('end', () => {
+            xrHitTestSource = null;
+            hitTestSourceRequested = false;
+          });
+          hitTestSourceRequested = true;
+        }
+
+        if (xrHitTestSource) {
+          const hitTestResults = frame.getHitTestResults(xrHitTestSource);
+          if (hitTestResults.length) {
+            const hit = hitTestResults[0];
+            const pose = hit.getPose(referenceSpace);
+            reticle.visible = true;
+            reticle.matrix.fromArray(pose.transform.matrix);
+          } else {
+            reticle.visible = false;
+          }
+        }
+      }
+      renderer.render(scene, camera);
+    });
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
